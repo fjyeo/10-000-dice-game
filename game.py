@@ -59,12 +59,24 @@ class Game:
 
         # Decide starting player with a single dice roll
         print("\n🎲 Rolling to decide who starts...")
+
+        # Roll one dice per player and pair results with player objects
         rolls = [(p, random.randint(1, 6)) for p in self.players]
+
+        # Sort rolls by highest value (x[1] is the dice roll x[0] is the player name) in descending order using reverse=True
         rolls.sort(key=lambda x: x[1], reverse=True)
+
+        # Sets the starting player to the player with the highest roll by accessing the first element of the sorted rolls list
         self.starting_player = rolls[0][0]
+
+        # Find where the starting player sits in the original player list by using the index method and assigning it to start_idx
         start_idx = self.players.index(self.starting_player)
+
+        # Rotate player order so the starter goes first and turns continue in order by slicing the player list and appending the first slice to the end
         self.players = self.players[start_idx:] + self.players[:start_idx]
+
         print(f"🏆 {self.starting_player.name} starts first!\n")
+
 
     ### ---- SCORING ENGINE ---- ###
 
