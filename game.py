@@ -81,38 +81,28 @@ class Game:
     ### ---- SCORING ENGINE ---- ###
 
     def calculate_score(
-        self,
-        dice: list[int],
-    ) -> int:
-        """Returns the score for a given dice roll, following 10,000 rules."""
-        # Counts the number of each die in the roll and groups them by their value so we can check for sets and singles
+    self,
+    dice: list[int],
+) -> int:
+
+        """Optimised scoring calculation for the 10,000 dice game."""
         counts = Counter(dice)
-        score = 0
+        unique_vals = counts.keys()
 
-        # Simple check for a straight (1,2,3,4,5,6) → automatic 1000 points
-        if sorted(counts.keys()) == [1, 2, 3, 4, 5, 6]:
+        # Fast exit: check for special cases first
+        if len(unique_vals) == 6:  # Straight (1..6)
+            return 1000
+        if len(counts) == 3 and all(v == 2 for v in counts.values()):  # Three pairs
             return 1000
 
-        
-        # Check for three pairs (e.g. 2,2,3,3,6,6) by checking the length of the counts dictionary is 3 and all the values are 2  → automatic 1000 points  
-        if len(counts) == 3 and all(v == 2 for v in counts.values()):
-            return 1000
+        # Score triples+ in one pass (handles 3,4,5,6 of a kind automatically)
+        score = sum(
+            ((1000 if n == 1 else n * 100) << (c - 3))  # bitshift instead of ** for speed
+            for n, c in counts.items() if c >= 3
+        )
 
-        # Three-of-a-kind and above (scales exponentially) by using a for loop to iterate through the counts dictionary and checking if the count is greater than or equal to 3
-        for num, cnt in counts.items():
-            if cnt >= 3:
-                # Base score = 1000 for triple 1's, else num * 100 for other triples 
-                base = 1000 if num == 1 else num * 100
-                # Each extra die beyond three doubles the base score by using the exponentiation operator **
-                score += base * (2 ** (cnt - 3))
-                # Remove these dice from counts so we don't double-count singles by subtracting the count from the number of dice
-                counts[num] -= cnt
-
-        # Score remaining single 1's (100 each) and single 5's (50 each)
-        score += counts[1] * 100
-        score += counts[5] * 50
-
-        return score
+        # Add remaining 1's and 5's outside of sets of 3+
+        return score + (counts[1] % 3) * 100 + (counts[5] % 3) * 50
 
     ### ---- TURN LOGIC ---- ###
 
