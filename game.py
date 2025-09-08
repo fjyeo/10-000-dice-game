@@ -117,41 +117,58 @@ class Game:
     ### ---- TURN LOGIC ---- ###
 
     def player_turn(
-        self,
-        player: Player,
-    ):
-        """Handles a single player's turn."""
+    self,
+    player: Player,
+):
+        """Handles a single player's turn with proper roll/bank prompts."""
         print(f"\n----- {player.name}'s Turn -----")
         turn_score = 0
         dice_left = self.DICE_COUNT
 
         while True:
+            # Always ask the player if they want to roll before rolling
+            choice = input(f"{player.name}, do you want to roll {dice_left} dice? (Y/N): ").strip().upper()
+
+            # If player chooses NOT to roll
+            if choice == "N":
+                # Check entry threshold rule
+                if player.total_score + turn_score < self.ENTRY_THRESHOLD:
+                    print(f"⚠️ You need at least {self.ENTRY_THRESHOLD} points to get on the board. You must roll.")
+                    continue  # Force another prompt
+                else:
+                    # Player is allowed to bank and end their turn
+                    player.total_score += turn_score
+                    print(f"✅ {player.name} banks {turn_score} points. Total score: {player.total_score}")
+                    return
+
+            # Roll the dice
             roll = player.roll_dice(dice_left)
             print(f"🎲 Rolled: {roll}")
 
+            # Calculate score from this roll
             roll_score = self.calculate_score(roll)
             if roll_score == 0:
                 print("💀 No scoring dice! You lose all points for this turn.")
-                return  # No points banked
+                return
 
+            # Update turn score
             turn_score += roll_score
-            print(f"Current turn score: {turn_score}")
+            print(f"💰 Current turn score: {turn_score}")
 
-            # If all dice scored → "hot dice" → roll all six again
+            # Count scoring dice to determine how many dice are left
             scoring_dice = self.count_scoring_dice(roll)
             dice_left = dice_left - scoring_dice if dice_left - scoring_dice > 0 else self.DICE_COUNT
 
-            # Must reach 800 before being "on the board"
-            if player.total_score < self.ENTRY_THRESHOLD and turn_score + player.total_score < self.ENTRY_THRESHOLD:
-                print(f"⚠️ You need at least {self.ENTRY_THRESHOLD} to get on the board.")
-                continue
+            # If player scored with all dice → hot dice rule
+            if dice_left == self.DICE_COUNT:
+                print("🔥 Hot dice! You scored with every die.")
+                hot_choice = input(f"{player.name}, roll all six again or bank? (R/B): ").strip().upper()
+                if hot_choice == "B":
+                    player.total_score += turn_score
+                    print(f"✅ {player.name} banks {turn_score} points. Total score: {player.total_score}")
+                    return
+                # If they choose "R", we just loop back and roll again
 
-            # Ask player whether to bank or risk continuing
-            choice = input("Bank points and end turn? (Y/N): ").strip().upper()
-            if choice == "Y":
-                player.total_score += turn_score
-                print(f"✅ {player.name}'s total score: {player.total_score}")
-                return
 
     def count_scoring_dice(
         self,
@@ -198,11 +215,11 @@ class Game:
                 self.player_turn(player)
 
         # Announce winner
-        winner = max(self.players, key=lambda p: p.total_score)
+        winner = max(self.players, key=lambda p: p.total_score) # Use the max function to find the player with the highest total score by using the total_score attribute of the player object
         print(f"\n🏆 {winner.name} wins with {winner.total_score} points!")
 
 
 ### START GAME ###
 if __name__ == "__main__":
-    game = Game()
-    game.start()
+    game = Game() # Create a new game instance
+    game.start() # Start the game
