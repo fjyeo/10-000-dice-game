@@ -158,18 +158,19 @@ class Game:
         dice: list[int],
     ) -> int:
         """Counts how many dice contributed to scoring in the current roll."""
-        counts = Counter(dice)
+        counts = Counter(dice) # Count how many of each number was rolled
         used = 0
 
-        # Sets of three or more always score
+        # Add dice used in sets of three or more (e.g. three 2's = 3 dice used) by iterating through the counts dictionary and adding the count to the used variable if the count is greater than or equal to 3
         for num, cnt in counts.items():
             if cnt >= 3:
                 used += cnt
 
-        # Singles of 1's and 5's
+         # Add leftover scoring singles: 1's and 5's
+         # Use % 3 so we only count singles outside of sets of three+
         used += counts[1] % 3
         used += counts[5] % 3
-        return used
+        return used # Return the number of dice used for scoring
 
     ### ---- GAME LOOP ---- ###
 
