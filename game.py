@@ -81,77 +81,84 @@ class Game:
     ### ---- SCORING ENGINE ---- ###
 
     def calculate_score(
-        self,
-        dice: list[int],
-    ) -> int:
-        """Returns the score for a given dice roll, following 10,000 rules."""
-        # Counts the number of each die in the roll and groups them by their value so we can check for sets and singles
+    self,
+    dice: list[int],
+) -> int:
+
+        """Optimised scoring calculation for the 10,000 dice game."""
         counts = Counter(dice)
-        score = 0
+        unique_vals = counts.keys()
 
-        # Simple check for a straight (1,2,3,4,5,6) → automatic 1000 points
-        if sorted(counts.keys()) == [1, 2, 3, 4, 5, 6]:
+        # Fast exit: check for special cases first
+        if len(unique_vals) == 6:  # Straight (1..6)
+            return 1000
+        if len(counts) == 3 and all(v == 2 for v in counts.values()):  # Three pairs
             return 1000
 
-        
-        # Check for three pairs (e.g. 2,2,3,3,6,6) by checking the length of the counts dictionary is 3 and all the values are 2  → automatic 1000 points  
-        if len(counts) == 3 and all(v == 2 for v in counts.values()):
-            return 1000
+        # Score triples+ in one pass (handles 3,4,5,6 of a kind automatically)
+        score = sum(
+            ((1000 if n == 1 else n * 100) << (c - 3))  # bitshift instead of ** for speed
+            for n, c in counts.items() if c >= 3
+        )
 
-        # Three-of-a-kind and above (scales exponentially) by using a for loop to iterate through the counts dictionary and checking if the count is greater than or equal to 3
-        for num, cnt in counts.items():
-            if cnt >= 3:
-                # Base score = 1000 for triple 1's, else num * 100 for other triples 
-                base = 1000 if num == 1 else num * 100
-                # Each extra die beyond three doubles the base score by using the exponentiation operator **
-                score += base * (2 ** (cnt - 3))
-                # Remove these dice from counts so we don't double-count singles by subtracting the count from the number of dice
-                counts[num] -= cnt
-
-        # Score remaining single 1's (100 each) and single 5's (50 each)
-        score += counts[1] * 100
-        score += counts[5] * 50
-
-        return score
+        # Add remaining 1's and 5's outside of sets of 3+
+        return score + (counts[1] % 3) * 100 + (counts[5] % 3) * 50
 
     ### ---- TURN LOGIC ---- ###
 
     def player_turn(
-        self,
-        player: Player,
-    ):
-        """Handles a single player's turn."""
+    self,
+    player: Player,
+):
+        """Handles a single player's turn with proper roll/bank prompts."""
         print(f"\n----- {player.name}'s Turn -----")
         turn_score = 0
         dice_left = self.DICE_COUNT
 
         while True:
+            # Always ask the player if they want to roll before rolling
+            choice = input(f"{player.name}, do you want to roll {dice_left} dice? (Y/N): ").strip().upper()
+
+            # If player chooses NOT to roll
+            if choice == "N":
+                # Check entry threshold rule
+                if player.total_score + turn_score < self.ENTRY_THRESHOLD:
+                    print(f"⚠️ You need at least {self.ENTRY_THRESHOLD} points to get on the board. You must roll.")
+                    continue  # Force another prompt
+                else:
+                    # Player is allowed to bank and end their turn
+                    player.total_score += turn_score
+                    print(f"✅ {player.name} banks {turn_score} points. Total score: {player.total_score}")
+                    return
+
+            # Roll the dice
             roll = player.roll_dice(dice_left)
             print(f"🎲 Rolled: {roll}")
 
+            # Calculate score from this roll
             roll_score = self.calculate_score(roll)
             if roll_score == 0:
                 print("💀 No scoring dice! You lose all points for this turn.")
-                return  # No points banked
+                return
 
+            # Update turn score
             turn_score += roll_score
-            print(f"Current turn score: {turn_score}")
+            print(f"💰 Current turn score: {turn_score}")
 
-            # If all dice scored → "hot dice" → roll all six again
+            # Count scoring dice to determine how many dice are left
             scoring_dice = self.count_scoring_dice(roll)
             dice_left = dice_left - scoring_dice if dice_left - scoring_dice > 0 else self.DICE_COUNT
 
-            # Must reach 800 before being "on the board"
-            if player.total_score < self.ENTRY_THRESHOLD and turn_score + player.total_score < self.ENTRY_THRESHOLD:
-                print(f"⚠️ You need at least {self.ENTRY_THRESHOLD} to get on the board.")
-                continue
+            # If player scored with all dice → hot dice rule
+            if dice_left == self.DICE_COUNT:
+                print("🔥 Hot dice! You scored with every die.")
+                hot_choice = input(f"{player.name}, roll all six again or bank? (R/B): ").strip().upper()
+                if hot_choice == "B":
+                    player.total_score += turn_score
+                    print(f"✅ {player.name} banks {turn_score} points. Total score: {player.total_score}")
+                    return
+                # If they choose "R", we just loop back and roll again
 
-            # Ask player whether to bank or risk continuing
-            choice = input("Bank points and end turn? (Y/N): ").strip().upper()
-            if choice == "Y":
-                player.total_score += turn_score
-                print(f"✅ {player.name}'s total score: {player.total_score}")
-                return
 
     def count_scoring_dice(
         self,
@@ -198,11 +205,11 @@ class Game:
                 self.player_turn(player)
 
         # Announce winner
-        winner = max(self.players, key=lambda p: p.total_score)
+        winner = max(self.players, key=lambda p: p.total_score) # Use the max function to find the player with the highest total score by using the total_score attribute of the player object
         print(f"\n🏆 {winner.name} wins with {winner.total_score} points!")
 
 
 ### START GAME ###
 if __name__ == "__main__":
-    game = Game()
-    game.start()
+    game = Game() # Create a new game instance
+    game.start() # Start the game
